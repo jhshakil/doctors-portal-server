@@ -4,7 +4,6 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const { MongoClient, ServerApiVersion } = require('mongodb');
-const { get } = require('express/lib/response');
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -26,7 +25,6 @@ function verifyToken(req, res, next) {
             return res.status(403).send({ massage: 'Forbidden access' });
         }
         req.decoded = decoded;
-        console.log(req.decoded.email)
         next();
     });
 
@@ -46,11 +44,34 @@ async function run() {
             res.send(services)
         })
 
-        app.get('/user', async (req, res) => {
+        app.get('/user', verifyToken, async (req, res) => {
             const users = await userCollection.find().toArray();
             res.send(users);
         })
 
+        app.get('/admin/:email', async (req, res) => {
+            const email = req.params.email;
+            const user = await userCollection.findOne({ email: email });
+            const isAdmin = user.role === 'admin';
+            res.send({ admin: isAdmin });
+        })
+
+        app.put('/user/admin/:email', verifyToken, async (req, res) => {
+            const email = req.params.email;
+            const requester = req.decoded.email;
+            const requestAccount = await userCollection.findOne({ email: requester });
+            if (requestAccount.role === 'admin') {
+                const query = { email: email };
+                const updateDoc = {
+                    $set: { role: 'admin' }
+                }
+                const result = await userCollection.updateOne(query, updateDoc);
+                return res.send(result);
+            } else {
+                return res.status(403).send({ massage: 'Forbidden access' });
+            }
+
+        })
         app.put('/user/:email', async (req, res) => {
             const email = req.params.email;
             const user = req.body;
@@ -69,7 +90,6 @@ async function run() {
             const decodedEmail = req.decoded.email;
             if (patient === decodedEmail) {
                 const query = { patient: patient };
-                console.log(patient);
                 const bookings = await bookingCollection.find(query).toArray();
                 return res.send(bookings);
             } else {
