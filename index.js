@@ -4,6 +4,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const { MongoClient, ServerApiVersion } = require('mongodb');
+const res = require('express/lib/response');
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -128,9 +129,20 @@ async function run() {
             res.send(services);
         })
 
+        app.get('/doctor', verifyToken, verifyAdmin, async (req, res) => {
+            const doctors = await doctorCollection.find().toArray();
+            res.send(doctors);
+        })
+
         app.post('/doctor', verifyToken, verifyAdmin, async (req, res) => {
             const doctor = req.body;
             const result = await doctorCollection.insertOne(doctor);
+            res.send(result);
+        })
+        app.delete('/doctor/:email', verifyToken, verifyAdmin, async (req, res) => {
+            const email = req.params.email;
+            const filter = { email: email };
+            const result = await doctorCollection.deleteOne(filter);
             res.send(result);
         })
 
